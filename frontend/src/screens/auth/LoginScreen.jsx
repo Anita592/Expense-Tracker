@@ -1,4 +1,14 @@
-import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import {
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
+} from 'react-native';
 import React, { useState } from 'react';
 
 import { useAuth } from '../../context/AuthContext';
@@ -6,6 +16,8 @@ import { useAuth } from '../../context/AuthContext';
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
   const { login } = useAuth();
 
   const handleLogin = async () => {
@@ -13,46 +25,251 @@ export default function LoginScreen({ navigation }) {
       Alert.alert('Gabim', 'Plotëso të gjitha fushat!');
       return;
     }
+    setLoading(true);
     try {
       await login(email, password);
     } catch (err) {
       Alert.alert('Gabim', 'Email ose fjalëkalim i gabuar!');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Expense Tracker</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Email"
-        value={email}
-        onChangeText={setEmail}
-        keyboardType="email-address"
-        autoCapitalize="none"
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Fjalëkalimi"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-      />
-      <TouchableOpacity style={styles.button} onPress={handleLogin}>
-        <Text style={styles.buttonText}>Hyr</Text>
-      </TouchableOpacity>
-      <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-        <Text style={styles.link}>Nuk ke llogari? Regjistrohu</Text>
-      </TouchableOpacity>
-    </View>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      {/* HEADER BLU */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Expense Tracker</Text>
+      </View>
+
+      <ScrollView contentContainerStyle={styles.scroll}>
+        <View style={styles.content}>
+
+          <Text style={styles.title}>Mirë se vini!</Text>
+          <Text style={styles.subtitle}>Kyçuni në llogarinë tuaj</Text>
+
+          {/* EMAIL */}
+          <Text style={styles.label}>Email</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="email@shembull.com"
+            placeholderTextColor="#aaa"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
+
+          {/* FJALËKALIMI */}
+          <Text style={styles.label}>Fjalëkalimi</Text>
+          <View style={styles.passwordContainer}>
+            <TextInput
+              style={styles.passwordInput}
+              placeholder="••••••••"
+              placeholderTextColor="#aaa"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!showPassword}
+            />
+            <TouchableOpacity
+              style={styles.eyeButton}
+              onPress={() => setShowPassword(!showPassword)}
+            >
+              <Text style={styles.eyeIcon}>{showPassword ? '🙈' : '👁️'}</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* HARRUAT FJALËKALIMIN */}
+          <TouchableOpacity style={styles.forgotContainer}>
+            <Text style={styles.forgotText}>Harruat fjalëkalimin?</Text>
+          </TouchableOpacity>
+
+          {/* BUTONI KYÇU */}
+          <TouchableOpacity
+            style={[styles.button, loading && styles.buttonDisabled]}
+            onPress={handleLogin}
+            disabled={loading}
+          >
+            <Text style={styles.buttonText}>
+              {loading ? 'Duke hyrë...' : 'KYÇU'}
+            </Text>
+          </TouchableOpacity>
+
+          {/* DIVIDER */}
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>ose</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          {/* GOOGLE BUTTON */}
+          <TouchableOpacity style={styles.googleButton}>
+            <Text style={styles.googleIcon}>🔵</Text>
+            <Text style={styles.googleText}>Kyçu me Google</Text>
+          </TouchableOpacity>
+
+          {/* REGJISTROHU */}
+          <View style={styles.registerContainer}>
+            <Text style={styles.registerText}>Nuk keni llogari? </Text>
+            <TouchableOpacity onPress={() => navigation.navigate('Register')}>
+              <Text style={styles.registerLink}>Regjistrohu këtu</Text>
+            </TouchableOpacity>
+          </View>
+
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', padding: 20, backgroundColor: '#fff' },
-  title: { fontSize: 28, fontWeight: 'bold', textAlign: 'center', marginBottom: 30, color: '#1F3864' },
-  input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12, marginBottom: 15, fontSize: 16 },
-  button: { backgroundColor: '#2E75B6', padding: 15, borderRadius: 8, alignItems: 'center', marginBottom: 15 },
-  buttonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
-  link: { textAlign: 'center', color: '#2E75B6', fontSize: 14 },
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  header: {
+    backgroundColor: '#1a3a6e',
+    paddingTop: 50,
+    paddingBottom: 20,
+    alignItems: 'center',
+  },
+  headerTitle: {
+    color: '#fff',
+    fontSize: 22,
+    fontWeight: 'bold',
+    letterSpacing: 0.5,
+  },
+  scroll: {
+    flexGrow: 1,
+  },
+  content: {
+    padding: 24,
+    maxWidth: 480,
+    width: '100%',
+    alignSelf: 'center',
+  },
+  title: {
+    fontSize: 26,
+    fontWeight: 'bold',
+    color: '#1a3a6e',
+    marginTop: 24,
+    marginBottom: 6,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: '#888',
+    marginBottom: 28,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+  },
+  input: {
+    borderWidth: 1.5,
+    borderColor: '#d0d0d0',
+    borderRadius: 10,
+    padding: 14,
+    fontSize: 15,
+    color: '#333',
+    marginBottom: 18,
+    backgroundColor: '#fff',
+  },
+  passwordContainer: {
+    flexDirection: 'row',
+    borderWidth: 1.5,
+    borderColor: '#d0d0d0',
+    borderRadius: 10,
+    marginBottom: 8,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+  },
+  passwordInput: {
+    flex: 1,
+    padding: 14,
+    fontSize: 15,
+    color: '#333',
+  },
+  eyeButton: {
+    padding: 14,
+  },
+  eyeIcon: {
+    fontSize: 18,
+  },
+  forgotContainer: {
+    alignItems: 'flex-end',
+    marginBottom: 20,
+  },
+  forgotText: {
+    color: '#1a3a6e',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  button: {
+    backgroundColor: '#1a3a6e',
+    padding: 16,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  buttonDisabled: {
+    backgroundColor: '#7a9cc6',
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+    letterSpacing: 1,
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#eee',
+  },
+  dividerText: {
+    marginHorizontal: 12,
+    color: '#aaa',
+    fontSize: 13,
+  },
+  googleButton: {
+    flexDirection: 'row',
+    borderWidth: 1.5,
+    borderColor: '#d0d0d0',
+    borderRadius: 10,
+    padding: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+  },
+  googleIcon: {
+    fontSize: 18,
+    marginRight: 10,
+  },
+  googleText: {
+    fontSize: 15,
+    color: '#333',
+    fontWeight: '500',
+  },
+  registerContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  registerText: {
+    fontSize: 14,
+    color: '#666',
+  },
+  registerLink: {
+    fontSize: 14,
+    color: '#1a3a6e',
+    fontWeight: 'bold',
+  },
 });
