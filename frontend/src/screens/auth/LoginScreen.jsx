@@ -11,25 +11,50 @@ import {
 } from 'react-native';
 import React, { useState } from 'react';
 
+import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+
+const getErrorMessage = (err) => {
+  if (err.response?.data?.message) return err.response.data.message;
+  if (err.code === 'ECONNABORTED') return 'Kërkesa skadoi. Kontrollo nëse backend është duke punuar.';
+  if (err.message === 'Network Error') return 'Nuk mund të lidhet me backend. Kontrollo URL/portin e API-së dhe CORS.';
+  return err.message || 'Gabim i panjohur gjatë kyçjes.';
+};
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [debugMessage, setDebugMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
   const { login } = useAuth();
 
   const handleLogin = async () => {
+    console.log('LOGIN BUTTON CLICKED');
+    setErrorMessage('');
+    setDebugMessage('LOGIN BUTTON CLICKED');
     if (!email || !password) {
+      setErrorMessage('Missing email or password. The request was not sent.');
+      setDebugMessage('LOGIN BUTTON CLICKED -> validation stopped request');
       Alert.alert('Gabim', 'Plotëso të gjitha fushat!');
       return;
     }
+    const apiUrl = `${api.defaults.baseURL}/auth/login`;
+    console.log('LOGIN API URL:', apiUrl);
+    setDebugMessage(`Calling API: ${apiUrl}`);
     setLoading(true);
     try {
-      await login(email, password);
+      const res = await login(email, password);
+      console.log('LOGIN RESPONSE STATUS:', res.status);
+      console.log('LOGIN RESPONSE BODY:', res.data);
+      setDebugMessage(`Login response ${res.status}: ${JSON.stringify(res.data)}`);
     } catch (err) {
-      Alert.alert('Gabim', 'Email ose fjalëkalim i gabuar!');
+      console.error('Login failed:', err.response?.data || err.message);
+      const message = getErrorMessage(err);
+      setErrorMessage(message);
+      setDebugMessage(`Login failed: ${message}`);
+      Alert.alert('Gabim', message);
     } finally {
       setLoading(false);
     }
@@ -97,6 +122,16 @@ export default function LoginScreen({ navigation }) {
               {loading ? 'Duke hyrë...' : 'KYÇU'}
             </Text>
           </TouchableOpacity>
+
+          {!!debugMessage && (
+            <View style={styles.debugBox}>
+              <Text style={styles.debugText}>{debugMessage}</Text>
+            </View>
+          )}
+
+          {!!errorMessage && (
+            <Text style={styles.errorText}>{errorMessage}</Text>
+          )}
 
           {/* DIVIDER */}
           <View style={styles.divider}>
@@ -224,6 +259,24 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     letterSpacing: 1,
+  },
+  debugBox: {
+    borderWidth: 1,
+    borderColor: '#d0d0d0',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 12,
+    backgroundColor: '#f8f8f8',
+  },
+  debugText: {
+    color: '#333',
+    fontSize: 12,
+  },
+  errorText: {
+    color: '#e74c3c',
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: 12,
   },
   divider: {
     flexDirection: 'row',
