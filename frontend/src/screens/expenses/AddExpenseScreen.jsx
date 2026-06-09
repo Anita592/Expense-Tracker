@@ -1,81 +1,142 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TextInput, Button, TouchableOpacity, Alert, ScrollView } from 'react-native';
-import { addExpense, getCategories } from '../../services/expenseService';
+import {
+  ActivityIndicator,
+  Alert,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 
-const userId = 1;
+import api from '../../services/api';
+
+const todayIso = () => new Date().toISOString().slice(0, 10);
 
 export default function AddExpenseScreen({ navigation }) {
   const [amount, setAmount] = useState('');
-  const [date, setDate] = useState('');
+  const [date, setDate] = useState(todayIso());
   const [note, setNote] = useState('');
-  const [categoryId, setCategoryId] = useState(null);
+  const [category, setCategory] = useState('');
   const [categories, setCategories] = useState([]);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    const load = async () => {
-      const result = await getCategories(userId);
-      setCategories(result);
-      if (result.length > 0) {
-        setCategoryId(result[0].id);
-      }
-    };
-    load();
+    api.get('/expenses/categories')
+      .then((res) => {
+        setCategories(res.data || []);
+      })
+      .catch(() => {});
   }, []);
 
   const handleSave = async () => {
-    if (!amount || !date || !categoryId) {
-      Alert.alert('Validation', 'Please fill out amount, category, and date.');
+    setError('');
+    const amt = Number(amount);
+
+    if (!amt || amt <= 0) {
+      setError('Shuma duhet të jetë më e madhe se 0.');
+      return;
+    }
+    if (!category.trim()) {
+      setError('Kategoria është e detyrueshme.');
+      return;
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      setError('Data duhet të jetë në formatin YYYY-MM-DD.');
       return;
     }
 
-    await addExpense(userId, parseFloat(amount), categoryId, date, note);
-    navigation.goBack();
+    setSaving(true);
+    try {
+      await api.post('/expenses', {
+        amount: amt,
+        category: category.trim(),
+        expense_date: date,
+        note: note.trim(),
+      });
+
+      if (Platform.OS !== 'web') {
+        Alert.alert('Sukses', 'Shpenzimi u shtua me sukses.');
+      }
+      navigation.goBack();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Gabim gjatë ruajtjes.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-      <Text style={styles.label}>Amount</Text>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <Text style={styles.label}>Shuma</Text>
       <TextInput
         style={styles.input}
         value={amount}
         onChangeText={setAmount}
-        placeholder="Enter amount"
-        keyboardType="numeric"
+        placeholder="0.00"
+        placeholderTextColor="#aaa"
+        keyboardType="decimal-pad"
       />
 
-      <Text style={styles.label}>Category</Text>
-      <View style={styles.categoryRow}>
-        {categories.map((category) => (
-          <TouchableOpacity
-            key={category.id}
-            onPress={() => setCategoryId(category.id)}
-            style={[styles.categoryButton, categoryId === category.id && styles.categoryButtonActive]}
-          >
-            <Text style={[styles.categoryText, categoryId === category.id && styles.categoryTextActive]}>{category.icon} {category.name}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+      <Text style={styles.label}>Kategoria</Text>
+      {categories.length > 0 && (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+          {categories.map((cat) => (
+            <TouchableOpacity
+              key={cat.id}
+              style={[styles.chip, category === cat.name && styles.chipActive]}
+              onPress={() => setCategory(cat.name)}
+            >
+              <Text style={[styles.chipText, category === cat.name && styles.chipTextActive]}>
+                {cat.name}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      )}
+      <TextInput
+        style={styles.input}
+        value={category}
+        onChangeText={setCategory}
+        placeholder="Ushqim, Transport, ..."
+        placeholderTextColor="#aaa"
+      />
 
-      <Text style={styles.label}>Date</Text>
+      <Text style={styles.label}>Data</Text>
       <TextInput
         style={styles.input}
         value={date}
         onChangeText={setDate}
         placeholder="YYYY-MM-DD"
+        placeholderTextColor="#aaa"
       />
 
-      <Text style={styles.label}>Note</Text>
+      <Text style={styles.label}>Shënim</Text>
       <TextInput
         style={[styles.input, styles.noteInput]}
         value={note}
         onChangeText={setNote}
-        placeholder="Optional note"
+        placeholder="Opsional"
+        placeholderTextColor="#aaa"
         multiline
       />
 
-      <View style={styles.buttonContainer}>
-        <Button title="Save Expense" onPress={handleSave} />
-      </View>
+      {!!error && <Text style={styles.errorText}>{error}</Text>}
+
+      <TouchableOpacity
+        style={[styles.button, saving && styles.buttonDisabled]}
+        onPress={handleSave}
+        disabled={saving}
+      >
+        {saving ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.buttonText}>RUAJ SHPENZIMIN</Text>
+        )}
+      </TouchableOpacity>
     </ScrollView>
   );
 }
@@ -83,54 +144,76 @@ export default function AddExpenseScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#f5f6fa',
   },
-  contentContainer: {
+  content: {
     padding: 16,
+    gap: 4,
   },
   label: {
-    marginBottom: 8,
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#0f172a',
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 6,
+    marginTop: 10,
   },
   input: {
     backgroundColor: '#fff',
     borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#cbd5e1',
+    borderWidth: 1.5,
+    borderColor: '#d0d0d0',
     paddingHorizontal: 14,
     paddingVertical: 12,
-    marginBottom: 16,
+    fontSize: 15,
+    color: '#333',
   },
   noteInput: {
-    minHeight: 100,
+    minHeight: 90,
     textAlignVertical: 'top',
   },
-  categoryRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginBottom: 16,
+  chips: {
+    gap: 8,
+    paddingBottom: 10,
   },
-  categoryButton: {
-    paddingVertical: 8,
+  chip: {
+    borderWidth: 1.5,
+    borderColor: '#d0d0d0',
+    borderRadius: 10,
     paddingHorizontal: 12,
-    borderRadius: 20,
-    backgroundColor: '#e2e8f0',
-    marginRight: 8,
-    marginBottom: 8,
+    paddingVertical: 8,
+    backgroundColor: '#fff',
   },
-  categoryButtonActive: {
-    backgroundColor: '#2563eb',
+  chipActive: {
+    backgroundColor: '#1a3a6e',
+    borderColor: '#1a3a6e',
   },
-  categoryText: {
-    color: '#334155',
+  chipText: {
+    color: '#333',
+    fontSize: 13,
     fontWeight: '600',
   },
-  categoryTextActive: {
-    color: '#ffffff',
+  chipTextActive: {
+    color: '#fff',
   },
-  buttonContainer: {
+  errorText: {
+    color: '#e74c3c',
+    fontSize: 14,
+    fontWeight: '600',
     marginTop: 8,
+  },
+  button: {
+    backgroundColor: '#1a3a6e',
+    padding: 16,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: 'bold',
   },
 });
