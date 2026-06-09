@@ -1,4 +1,5 @@
 import DashboardScreen from '../screens/reports/DashboardScreen';
+import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
 import ExpenseListScreen from '../screens/expenses/ExpenseListScreen';
 import AddExpenseScreen from '../screens/expenses/AddExpenseScreen';
 import EditExpenseScreen from '../screens/expenses/EditExpenseScreen';
@@ -46,6 +47,7 @@ export default function AppNavigator() {
           <>
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="Register" component={RegisterScreen} />
+            <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} options={{ title: 'Rivendos fjalëkalimin' }} />
           </>
         )}
       </Stack.Navigator>

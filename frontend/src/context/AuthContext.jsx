@@ -1,12 +1,17 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../services/api';
+import { requestNotificationPermission } from '../utils/notifications';
 
 const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    requestNotificationPermission();
+  }, []);
 
   const login = async (email, password) => {
     const res = await api.post('/auth/login', { email, password });

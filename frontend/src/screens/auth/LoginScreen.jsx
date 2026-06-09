@@ -108,7 +108,10 @@ export default function LoginScreen({ navigation }) {
           </View>
 
           {/* HARRUAT FJALËKALIMIN */}
-          <TouchableOpacity style={styles.forgotContainer}>
+          <TouchableOpacity
+            style={styles.forgotContainer}
+            onPress={() => navigation.navigate('ForgotPassword')}
+          >
             <Text style={styles.forgotText}>Harruat fjalëkalimin?</Text>
           </TouchableOpacity>
 

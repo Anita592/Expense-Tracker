@@ -87,6 +87,25 @@ exports.login = async (req, res) => {
   }
 };
 
+// POST /api/auth/forgot-password
+exports.forgotPassword = async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ message: 'Email-i është i detyrueshëm' });
+  }
+
+  try {
+    const [rows] = await db.query('SELECT id FROM users WHERE email = ?', [email]);
+    if (!rows.length) {
+      return res.status(404).json({ message: 'Nuk u gjet llogari me këtë email' });
+    }
+    res.json({ message: 'Udhëzimet e rivendosjes u dërguan në email' });
+  } catch (err) {
+    res.status(500).json({ message: 'Gabim serveri' });
+  }
+};
+
 // POST /api/auth/logout
 exports.logout = (req, res) => {
   res.json({ message: 'Logout i suksesshëm' });

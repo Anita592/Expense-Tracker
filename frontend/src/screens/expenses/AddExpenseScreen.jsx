@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 
 import api from '../../services/api';
+import { sendBudgetWarningNotification, sendExpenseNotification } from '../../utils/notifications';
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
@@ -57,6 +58,19 @@ export default function AddExpenseScreen({ navigation }) {
         expense_date: date,
         note: note.trim(),
       });
+
+      await sendExpenseNotification(amt, category.trim());
+
+      try {
+        const now = new Date();
+        const reportRes = await api.get('/reports/dashboard');
+        const { monthTotal, budget } = reportRes.data;
+        if (budget > 0 && monthTotal / budget >= 0.8) {
+          await sendBudgetWarningNotification(monthTotal, budget);
+        }
+      } catch {
+        // notifikimi i buxhetit është opsional
+      }
 
       if (Platform.OS !== 'web') {
         Alert.alert('Sukses', 'Shpenzimi u shtua me sukses.');
