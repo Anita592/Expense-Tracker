@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TextInput, Button, TouchableOpacity, Alert, ScrollView } from 'react-native';
-import { addExpense, getCategories } from '../../services/expenseService';
+import { getCategories, updateExpense } from '../../services/expenseService';
 
 const userId = 1;
 
-export default function AddExpenseScreen({ navigation }) {
+export default function EditExpenseScreen({ route, navigation }) {
+  const expense = route.params?.expense;
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState('');
   const [note, setNote] = useState('');
@@ -12,25 +13,46 @@ export default function AddExpenseScreen({ navigation }) {
   const [categories, setCategories] = useState([]);
 
   useEffect(() => {
+    if (expense) {
+      setAmount(String(expense.amount));
+      setDate(expense.date);
+      setNote(expense.note || '');
+      setCategoryId(expense.categoryId);
+    }
+
     const load = async () => {
       const result = await getCategories(userId);
       setCategories(result);
-      if (result.length > 0) {
-        setCategoryId(result[0].id);
-      }
     };
     load();
-  }, []);
+  }, [expense]);
 
-  const handleSave = async () => {
+  const handleUpdate = async () => {
+    if (!expense) {
+      return;
+    }
+
     if (!amount || !date || !categoryId) {
       Alert.alert('Validation', 'Please fill out amount, category, and date.');
       return;
     }
 
-    await addExpense(userId, parseFloat(amount), categoryId, date, note);
+    await updateExpense(expense.id, {
+      amount: parseFloat(amount),
+      categoryId,
+      date,
+      note,
+    });
     navigation.goBack();
   };
+
+  if (!expense) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.emptyText}>No expense selected.</Text>
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
@@ -74,7 +96,7 @@ export default function AddExpenseScreen({ navigation }) {
       />
 
       <View style={styles.buttonContainer}>
-        <Button title="Save Expense" onPress={handleSave} />
+        <Button title="Update Expense" onPress={handleUpdate} />
       </View>
     </ScrollView>
   );
@@ -132,5 +154,11 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     marginTop: 8,
+  },
+  emptyText: {
+    marginTop: 40,
+    textAlign: 'center',
+    color: '#475569',
+    fontSize: 16,
   },
 });
