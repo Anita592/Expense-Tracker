@@ -13,6 +13,13 @@ import React, { useState } from 'react';
 
 import api from '../../services/api';
 
+const getErrorMessage = (err) => {
+  if (err.response?.data?.message) return err.response.data.message;
+  if (err.code === 'ECONNABORTED') return 'Kërkesa skadoi. Kontrollo nëse backend është duke punuar.';
+  if (err.message === 'Network Error') return 'Nuk mund të lidhet me backend. Kontrollo URL/portin e API-së dhe CORS.';
+  return err.message || 'Gabim i panjohur gjatë regjistrimit.';
+};
+
 export default function RegisterScreen({ navigation }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -21,6 +28,8 @@ export default function RegisterScreen({ navigation }) {
   const [showPassword, setShowPassword] = useState(false);
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [debugMessage, setDebugMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
 
   const getPasswordStrength = () => {
     if (password.length === 0) return 0;
@@ -34,29 +43,50 @@ export default function RegisterScreen({ navigation }) {
   const strength = getPasswordStrength();
 
   const handleRegister = async () => {
+    console.log('REGISTER BUTTON CLICKED');
+    setErrorMessage('');
+    setDebugMessage('REGISTER BUTTON CLICKED');
     if (!name || !email || !password || !confirmPassword) {
+      setErrorMessage('Missing required fields. The request was not sent.');
+      setDebugMessage('REGISTER BUTTON CLICKED -> validation stopped request');
       Alert.alert('Gabim', 'Plotëso të gjitha fushat!');
       return;
     }
     if (password.length < 8) {
+      setErrorMessage('Password must be at least 8 characters. The request was not sent.');
+      setDebugMessage('REGISTER BUTTON CLICKED -> password validation stopped request');
       Alert.alert('Gabim', 'Fjalëkalimi duhet të ketë minimum 8 karaktere!');
       return;
     }
     if (password !== confirmPassword) {
+      setErrorMessage('Passwords do not match. The request was not sent.');
+      setDebugMessage('REGISTER BUTTON CLICKED -> confirm password validation stopped request');
       Alert.alert('Gabim', 'Fjalëkalimet nuk përputhen!');
       return;
     }
     if (!acceptTerms) {
+      setErrorMessage('Terms checkbox is not checked. The request was not sent.');
+      setDebugMessage('REGISTER BUTTON CLICKED -> terms validation stopped request');
       Alert.alert('Gabim', 'Duhet të pranosh Kushtet e Shërbimit!');
       return;
     }
+    const apiUrl = `${api.defaults.baseURL}/auth/register`;
+    console.log('REGISTER API URL:', apiUrl);
+    setDebugMessage(`Calling API: ${apiUrl}`);
     setLoading(true);
     try {
-      await api.post('/auth/register', { name, email, password });
+      const res = await api.post('/auth/register', { name, email, password });
+      console.log('REGISTER RESPONSE STATUS:', res.status);
+      console.log('REGISTER RESPONSE BODY:', res.data);
+      setDebugMessage(`Register response ${res.status}: ${JSON.stringify(res.data)}`);
       Alert.alert('Sukses', 'Llogaria u krijua!');
       navigation.navigate('Login');
     } catch (err) {
-      Alert.alert('Gabim', 'Email ekziston ose gabim serveri!');
+      console.error('Register failed:', err.response?.data || err.message);
+      const message = getErrorMessage(err);
+      setErrorMessage(message);
+      setDebugMessage(`Register failed: ${message}`);
+      Alert.alert('Gabim', message);
     } finally {
       setLoading(false);
     }
@@ -172,6 +202,16 @@ export default function RegisterScreen({ navigation }) {
           </TouchableOpacity>
 
           {/* KYÇUNI */}
+          {!!debugMessage && (
+            <View style={styles.debugBox}>
+              <Text style={styles.debugText}>{debugMessage}</Text>
+            </View>
+          )}
+
+          {!!errorMessage && (
+            <Text style={styles.errorText}>{errorMessage}</Text>
+          )}
+
           <View style={styles.loginContainer}>
             <Text style={styles.loginText}>Keni llogari? </Text>
             <TouchableOpacity onPress={() => navigation.navigate('Login')}>
@@ -314,6 +354,24 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     letterSpacing: 1,
+  },
+  debugBox: {
+    borderWidth: 1,
+    borderColor: '#d0d0d0',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 12,
+    backgroundColor: '#f8f8f8',
+  },
+  debugText: {
+    color: '#333',
+    fontSize: 12,
+  },
+  errorText: {
+    color: '#e74c3c',
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: 12,
   },
   loginContainer: {
     flexDirection: 'row',

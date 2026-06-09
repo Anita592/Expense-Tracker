@@ -10,8 +10,12 @@ export function AuthProvider({ children }) {
 
   const login = async (email, password) => {
     const res = await api.post('/auth/login', { email, password });
+    if (!res.data?.token || !res.data?.user) {
+      throw new Error('Server did not return a valid login session.');
+    }
     await AsyncStorage.setItem('token', res.data.token);
     setUser(res.data.user);
+    return res;
   };
 
   const logout = async () => {

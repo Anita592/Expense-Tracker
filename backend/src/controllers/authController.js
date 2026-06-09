@@ -5,6 +5,16 @@ const db     = require('../config/db');
 // POST /api/auth/register
 exports.register = async (req, res) => {
   const { name, email, password } = req.body;
+
+  if (!name || !email || !password) {
+    return res.status(400).json({ message: 'Emri, email dhe fjalëkalimi janë të detyrueshme' });
+  }
+
+  if (!process.env.JWT_SECRET) {
+    console.error('JWT_SECRET is missing. Check backend/.env');
+    return res.status(500).json({ message: 'Konfigurimi i JWT mungon në server' });
+  }
+
   try {
     const [exists] = await db.query(
       'SELECT id FROM users WHERE email=?', [email]
@@ -22,15 +32,34 @@ exports.register = async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN }
     );
-    res.status(201).json({ token, userId: result.insertId });
+    res.status(201).json({
+      token,
+      user: { id: result.insertId, name, email },
+      userId: result.insertId,
+    });
   } catch (err) {
-    res.status(500).json({ message: 'Gabim serveri' });
+    console.error('Register error:', {
+      code: err.code,
+      errno: err.errno,
+      message: err.message,
+    });
+    res.status(500).json({ message: err.sqlMessage || err.message || 'Gabim serveri' });
   }
 };
 
 // POST /api/auth/login
 exports.login = async (req, res) => {
   const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json({ message: 'Email dhe fjalëkalimi janë të detyrueshme' });
+  }
+
+  if (!process.env.JWT_SECRET) {
+    console.error('JWT_SECRET is missing. Check backend/.env');
+    return res.status(500).json({ message: 'Konfigurimi i JWT mungon në server' });
+  }
+
   try {
     const [rows] = await db.query(
       'SELECT * FROM users WHERE email=?', [email]
@@ -49,7 +78,12 @@ exports.login = async (req, res) => {
     );
     res.json({ token, user: { id: rows[0].id, name: rows[0].name, email: rows[0].email } });
   } catch (err) {
-    res.status(500).json({ message: 'Gabim serveri' });
+    console.error('Login error:', {
+      code: err.code,
+      errno: err.errno,
+      message: err.message,
+    });
+    res.status(500).json({ message: err.sqlMessage || err.message || 'Gabim serveri' });
   }
 };
 
