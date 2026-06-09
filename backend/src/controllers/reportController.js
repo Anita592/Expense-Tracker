@@ -112,6 +112,91 @@ exports.getMonthlyReport = async (req, res) => {
   }
 };
 
+exports.getDashboard = async (req, res) => {
+  const now = new Date();
+  const month = now.getMonth() + 1;
+  const year = now.getFullYear();
+
+  const period = getPeriodBounds(month, year);
+
+  // Current week: Monday to Sunday
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const dayOfWeek = today.getDay();
+  const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  const monday = new Date(today);
+  monday.setDate(today.getDate() + diffToMonday);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 7);
+
+  const weekStart = monday.toISOString().slice(0, 10);
+  const weekEnd = sunday.toISOString().slice(0, 10);
+
+  try {
+    const userId = req.user.id;
+
+    const [[totalRow], [budgetRows], weeklyRows, recentRows] = await Promise.all([
+      db.query(
+        `SELECT COALESCE(SUM(amount), 0) AS total
+         FROM expenses
+         WHERE user_id = ? AND expense_date >= ? AND expense_date < ?`,
+        [userId, period.start, period.end]
+      ),
+      db.query(
+        `SELECT amount FROM budgets
+         WHERE user_id = ? AND month = ? AND year = ?
+         LIMIT 1`,
+        [userId, month, year]
+      ),
+      db.query(
+        `SELECT DAYOFWEEK(expense_date) AS dow,
+                COALESCE(SUM(amount), 0) AS total
+         FROM expenses
+         WHERE user_id = ? AND expense_date >= ? AND expense_date < ?
+         GROUP BY DAYOFWEEK(expense_date)`,
+        [userId, weekStart, weekEnd]
+      ),
+      db.query(
+        `SELECT e.id,
+                DATE_FORMAT(e.expense_date, '%Y-%m-%d') AS date,
+                COALESCE(c.name, 'Pa kategori') AS category,
+                COALESCE(c.color, '#2E75B6') AS color,
+                e.amount,
+                e.note
+         FROM expenses e
+         LEFT JOIN categories c ON c.id = e.category_id
+         WHERE e.user_id = ?
+         ORDER BY e.expense_date DESC, e.id DESC
+         LIMIT 5`,
+        [userId]
+      ),
+    ]);
+
+    // DAYOFWEEK: 1=Sun, 2=Mon, ..., 7=Sat → map to index 0=Mon..6=Sun
+    const weekly = [0, 0, 0, 0, 0, 0, 0];
+    weeklyRows[0].forEach(({ dow, total }) => {
+      const idx = dow === 1 ? 6 : Number(dow) - 2;
+      weekly[idx] = Number(total || 0);
+    });
+
+    res.json({
+      monthTotal: Number(totalRow[0]?.total || 0),
+      budget: budgetRows.length ? Number(budgetRows[0].amount) : 0,
+      weekly,
+      recent: recentRows[0].map((r) => ({
+        id: r.id,
+        date: r.date,
+        category: r.category,
+        color: r.color,
+        amount: Number(r.amount || 0),
+        note: r.note || '',
+      })),
+    });
+  } catch (err) {
+    console.error('Dashboard error:', err.message);
+    res.status(500).json({ message: 'Gabim gjatë marrjes së dashboard' });
+  }
+};
+
 exports.upsertMonthlyBudget = async (req, res) => {
   const period = getPeriodBounds(req.body.month, req.body.year);
   const amount = Number(req.body.amount);
